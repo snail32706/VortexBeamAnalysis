@@ -18,20 +18,24 @@ import find_SEM_scalebarPixel as Scalebarfunc
 import MathTool
 
 '''
-此檔案利用 load 指定 file.
-透過 `plt_SEM_imshow` 得到 "twoD_FFT", "scalebar"
+此檔案利用 `tk.filedialog` load file.
+再透過 `plt_SEM_imshow` 得到 "twoD_FFT", "scalebar"
 
-`ArrayViewer` 主要是用 tkinter.
-透過鼠標互動，點出 「peak point」； simulate 橢圓形。
+`FFTUI` 主要用 tkinter 管理 UI, `FigureCanvasTkAgg`將`matplotlib`的功能時現在`tkUI`中顯示。
+並透過鼠標互動，點出 「peak point」； simulate 橢圓形。
 
 注意：
     `self.ellClass` 設定 "theta = 0"
 
 '''
 
+# file_path = f'/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP/18.tif'
 
+def choose_path(master):
 
-file = f'/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP/18.tif'
+    file_path = tk.filedialog.askopenfilename(
+        initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data')
+    return file_path
 
 def plt_SEM_imshow(file_path, center, length):
     file_name = file_path.split('/')[-2] + '/' + file_path.split('/')[-1]
@@ -46,20 +50,16 @@ def plt_SEM_imshow(file_path, center, length):
     twoD_FFT = fftClass.array2FFT(cropped_array)
     return twoD_FFT, scalebar
    
-class ArrayViewer:
-    def __init__(self, array):
+class FFTUI:
+    def __init__(self, master, array):
 
-        self.array = array  # FFT array
+        self.master   = master
+        self.master.title('Array Viewer')
+        self.array    = array  # FFT array
         width, length = array.shape
-
-        self.fftClass = FFTfunc.FFT(file)
+        self.fftClass = FFTfunc.FFT(file_path)
         self.change_axis = self.fftClass.extent4FFT(width, length)
-        
         self.ellClass = MathTool.Simulate_ellipse(center=(width//2, length//2), theta=0) # theta 設定為 0
-        
-        # 建立 tkinter 視窗
-        self.root = tk.Tk()
-        self.root.title('Array Viewer')
 
         # 建立 matplotlib 圖形
         self.fig = Figure(figsize=(6, 6), dpi=100)
@@ -70,23 +70,20 @@ class ArrayViewer:
         self.ax.set_ylim(-self.fftlim, self.fftlim)
 
         # 將 matplotlib 圖形嵌入 tkinter 視窗中
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.root)
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-        # 建立點選功能所需的空串列
-        self.point_list = [[], []]
-
         # 建立 Get Point 按鈕
-        get_point_button = tk.Button(master=self.root, text='Get Point', command=self.get_point)
+        get_point_button = tk.Button(master=self.master, text='Get Point', command=self.get_point)
         get_point_button.pack(side=tk.LEFT)
 
         # 建立 Clear Point 按鈕
-        clear_point_button = tk.Button(master=self.root, text='Clear all', command=self.clear_point)
+        clear_point_button = tk.Button(master=self.master, text='Clear all', command=self.clear_point)
         clear_point_button.pack(side=tk.LEFT)
 
         # 建立 simulate 按鈕
-        simulate_ellipse_button = tk.Button(master=self.root, text='Simulate', command=self.simulate_ellipse)
+        simulate_ellipse_button = tk.Button(master=self.master, text='Simulate', command=self.plt_ab_on_fig)
         simulate_ellipse_button.pack(side=tk.LEFT)
 
         # 將圖形與按鈕顯示於視窗中
@@ -94,11 +91,24 @@ class ArrayViewer:
         get_point_button.pack(side=tk.LEFT)
         clear_point_button.pack(side=tk.LEFT)
 
+        # 建立點選功能所需的空串列
+        self.point_list = [[], []]
+
+        # 建立 tkinter Scale 物件
+        scale_label  = tk.Label(self.master, text="axis lim").pack(side=tk.LEFT)
+        self.fftlim_scale = tk.Scale(master=self.master, from_=5, to=f'{width//2}', tickinterval= f'{200}', resolution=5, 
+                                orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
+        self.fftlim_scale.set(70)
+        self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
+
         # 設定圖形的鼠標點擊事件
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
-        # 啟動 tkinter 視窗
-        self.root.mainloop()
+    def update_fftlim(self, value):
+        self.fftlim = int(value)
+        self.ax.set_xlim(-self.fftlim, self.fftlim)
+        self.ax.set_ylim(-self.fftlim, self.fftlim)
+        self.canvas.draw()
 
     def on_click(self, event):
         if event.inaxes is not None:
@@ -134,9 +144,25 @@ class ArrayViewer:
         x, y = np.meshgrid(self.fftClass.FFTAxisCenterbeZero(width), self.fftClass.FFTAxisCenterbeZero(width))
         self.ax.contour(x, y, distance, levels=[0], colors='white')
         self.fig.canvas.draw()
-        print(a, b)
+        return int(round(a)), int(round(b))
 
-viewer = ArrayViewer(plt_SEM_imshow(file, center=(.45, .48), length=.399)[0])
+    def plt_ab_on_fig(self):
+        
+        if len(self.point_list[0]) < 3:
+            print('too little point!')
+            return 
+
+        a, b = self.simulate_ellipse()
+        y_lim = self.fftlim_scale.get()
+        self.ax.text(0, 0.9*y_lim, f'x:{a} y:{b}', fontsize=12, ha='center', va='center')
+        self.fig.canvas.draw()
 
 
+if __name__ == '__main__':
+    
+    root = tk.Tk()  # 建立 tkinter 視窗
+    file_path = choose_path(master=root)
+    array  = plt_SEM_imshow(file_path, center=(.45, .48), length=.399)[0]
+    viewer = FFTUI(master=root, array=array)
+    root.mainloop() # 啟動 tkinter 視窗
 
