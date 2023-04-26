@@ -29,13 +29,21 @@ import MathTool
 
 '''
 
+file_path = None
 # file_path = f'/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP/18.tif'
 
 def choose_path(master):
 
+    global file_path
     file_path = tk.filedialog.askopenfilename(
         initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data')
     return file_path
+
+def file_name(file_path):
+
+    # 移除副檔名
+    file_name = file_path.split('/')[-1].split('.')[0]
+    return f"{file_path.split('/')[-2]}_{file_name}"
 
 def plt_SEM_imshow(file_path, center, length):
     file_name = file_path.split('/')[-2] + '/' + file_path.split('/')[-1]
@@ -54,7 +62,7 @@ class FFTUI:
     def __init__(self, master, array):
 
         self.master   = master
-        self.master.title('Array Viewer')
+        self.master.title('Simulated ellipse from selecting points in FFT image')
         self.array    = array  # FFT array
         width, length = array.shape
         self.fftClass = FFTfunc.FFT(file_path)
@@ -64,6 +72,7 @@ class FFTUI:
         # 建立 matplotlib 圖形
         self.fig = Figure(figsize=(6, 6), dpi=100)
         self.ax = self.fig.add_subplot(111)
+        self.ax.set_title(file_name(file_path))
         self.ax.imshow(np.log(self.array), cmap='jet', vmin=-9, vmax=18, extent=self.change_axis, aspect=1)
         self.fftlim = 70
         self.ax.set_xlim(-self.fftlim, self.fftlim)
