@@ -22,7 +22,7 @@ import MathTool
 再透過 `plt_SEM_imshow` 得到 "twoD_FFT", "scalebar"
 
 `FFTUI` 主要用 tkinter 管理 UI, `FigureCanvasTkAgg`將`matplotlib`的功能時現在`tkUI`中顯示。
-並透過鼠標互動，點出 「peak point」； simulate 橢圓形。
+並透過鼠標互動，點出 「peak point」； simulate 橢圓形； 顯示「空間頻率」在圖上。
 
 注意：
     `self.ellClass` 設定 "theta = 0"
@@ -36,7 +36,8 @@ def choose_path(master):
 
     global file_path
     file_path = tk.filedialog.askopenfilename(
-        initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data')
+        initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP')
+    # '/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP'
     return file_path
 
 def file_name(file_path):
@@ -74,9 +75,6 @@ class FFTUI:
         self.ax = self.fig.add_subplot(111)
         self.ax.set_title(file_name(file_path))
         self.ax.imshow(np.log(self.array), cmap='jet', vmin=-9, vmax=18, extent=self.change_axis, aspect=1)
-        self.fftlim = 70
-        self.ax.set_xlim(-self.fftlim, self.fftlim)
-        self.ax.set_ylim(-self.fftlim, self.fftlim)
 
         # 將 matplotlib 圖形嵌入 tkinter 視窗中
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
@@ -95,6 +93,10 @@ class FFTUI:
         simulate_ellipse_button = tk.Button(master=self.master, text='Simulate', command=self.plt_ab_on_fig)
         simulate_ellipse_button.pack(side=tk.LEFT)
 
+        # 建立 save 按鈕
+        save_fig_button = tk.Button(master=self.master, text='save', command=self.save_fig)
+        save_fig_button.pack(side=tk.LEFT)
+
         # 將圖形與按鈕顯示於視窗中
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         get_point_button.pack(side=tk.LEFT)
@@ -107,7 +109,7 @@ class FFTUI:
         scale_label  = tk.Label(self.master, text="axis lim").pack(side=tk.LEFT)
         self.fftlim_scale = tk.Scale(master=self.master, from_=5, to=f'{width//2}', tickinterval= f'{200}', resolution=5, 
                                 orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
-        self.fftlim_scale.set(70)
+        self.fftlim_scale.set(50)
         self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
 
         # 設定圖形的鼠標點擊事件
@@ -162,9 +164,19 @@ class FFTUI:
             return 
 
         a, b = self.simulate_ellipse()
+        # change FFT pixel to spectral frequency.
+        width, length = self.array.shape
+        scalebar = plt_SEM_imshow(file_path, center=(.45, .48), length=.399)[1]
+        a_f, b_f = a * width * scalebar, b * width * scalebar
+        a_f, b_f = round(a_f,1), round(b_f,1)
         y_lim = self.fftlim_scale.get()
-        self.ax.text(0, 0.9*y_lim, f'x:{a} y:{b}', fontsize=12, ha='center', va='center')
+        self.ax.text(0, 0.9*y_lim, f'x:{a_f} y:{b_f}', fontsize=12, ha='center', va='center')
         self.fig.canvas.draw()
+
+    def save_fig(self):
+        file_name = file_path.split('/')[-2] + '/' + file_path.split('/')[-1]
+        abs_file_path = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/FFT_{file_name}.png"
+        self.fig.savefig(abs_file_path)
 
 
 if __name__ == '__main__':
