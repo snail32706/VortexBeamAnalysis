@@ -142,10 +142,15 @@ class FFTUI:
         self.ax.set_ylim(-self.fftlim, self.fftlim)
         self.fig.canvas.draw()
 
-    def simulate_ellipse(self):
-        
+    def check_numbers_of_data(self):
+
         if len(self.point_list[0]) < 3:
             print('too little point!')
+            return False
+
+    def simulate_ellipse(self):
+        
+        if self.check_numbers_of_data() == False:
             return 
 
         width, length = self.array.shape
@@ -159,24 +164,39 @@ class FFTUI:
 
     def plt_ab_on_fig(self):
         
-        if len(self.point_list[0]) < 3:
-            print('too little point!')
+        if self.check_numbers_of_data() == False:
             return 
 
-        a, b = self.simulate_ellipse()
-        # change FFT pixel to spectral frequency.
-        width, length = self.array.shape
-        scalebar = plt_SEM_imshow(file_path, center=(.45, .48), length=.399)[1]
-        a_f, b_f = a * width * scalebar, b * width * scalebar
+        a_f, b_f = self.pixel_2_frequency()
         a_f, b_f = round(a_f,1), round(b_f,1)
         y_lim = self.fftlim_scale.get()
         self.ax.text(0, 0.9*y_lim, f'x:{a_f} y:{b_f}', fontsize=12, ha='center', va='center')
         self.fig.canvas.draw()
 
+    def pixel_2_frequency(self):
+
+        a, b = self.simulate_ellipse()
+        width, length = self.array.shape
+        scalebar = plt_SEM_imshow(file_path, center=(.45, .48), length=.399)[1]
+        a_f = a * width * scalebar
+        b_f = b * width * scalebar
+        return a_f, b_f
+
     def save_fig(self):
-        file_name = file_path.split('/')[-2] + '/' + file_path.split('/')[-1]
-        abs_file_path = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/FFT_{file_name}.png"
-        self.fig.savefig(abs_file_path)
+
+        file_name = file_path.split('/')[-2] + '_' + file_path.split('/')[-1].split('.')[0]
+        abs_file_folder = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/"
+        
+        self.fig.savefig(abs_file_folder + f"FFT_{file_name}.png")
+        
+        if self.check_numbers_of_data() == False:
+            a_f, b_f = None, None
+        else:
+            a_f, b_f = self.pixel_2_frequency()
+        with open(abs_file_folder + 'fft_peak.txt', 'a') as f:
+            f.write(f"{file_name}\t{a_f}\t{b_f}\n")
+
+        self.master.destroy() # 關閉視窗
 
 
 if __name__ == '__main__':
