@@ -25,19 +25,22 @@ import MathTool
 並透過鼠標互動，點出 「peak point」； simulate 橢圓形； 顯示「空間頻率」在圖上。
 
 注意：
-    `self.ellClass` 設定 "theta = 0"
+    1. `self.ellClass` 設定 "theta = 0"
+    2. spatial frequency 倒數為週期
+    3. save_fig() 中的路徑需要改
 
 '''
 
 file_path = None
-# file_path = f'/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP/18.tif'
+# 會使用到 global variable 原因是：
+#           除了 class 還有很多函數會用到 "file_path"
 
-def choose_path(master):
+
+def tk_choose_path(master):
 
     global file_path
     file_path = tk.filedialog.askopenfilename(
         initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP')
-    # '/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP'
     return file_path
 
 def file_name(file_path):
@@ -63,6 +66,7 @@ class FFTUI:
     def __init__(self, master, array):
 
         self.master   = master
+        self.master.geometry('1200x1000')
         self.master.title('Simulated ellipse from selecting points in FFT image')
         self.array    = array  # FFT array
         width, length = array.shape
@@ -116,6 +120,7 @@ class FFTUI:
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
     def update_fftlim(self, value):
+        # print(value)
         self.fftlim = int(value)
         self.ax.set_xlim(-self.fftlim, self.fftlim)
         self.ax.set_ylim(-self.fftlim, self.fftlim)
@@ -185,7 +190,7 @@ class FFTUI:
     def save_fig(self):
 
         file_name = file_path.split('/')[-2] + '_' + file_path.split('/')[-1].split('.')[0]
-        abs_file_folder = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/"
+        # abs_file_folder = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/"
         
         self.fig.savefig(abs_file_folder + f"FFT_{file_name}.png")
         
@@ -202,7 +207,7 @@ class FFTUI:
 if __name__ == '__main__':
     
     root = tk.Tk()  # 建立 tkinter 視窗
-    file_path = choose_path(master=root)
+    file_path = tk_choose_path(master=root)
     array  = plt_SEM_imshow(file_path, center=(.45, .48), length=.399)[0]
     viewer = FFTUI(master=root, array=array)
     root.mainloop() # 啟動 tkinter 視窗
