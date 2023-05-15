@@ -11,9 +11,9 @@ from tkinter import filedialog
 import os
 # from scipy.optimize import minimize
 
-import FFT as plt_FFT
-import simulateLIPSS as LIPSS
-import find_SEM_scalebarPixel as Scalebarfunc
+import FFT as FFTfunc
+# import simulateLIPSS as LIPSS
+# import find_SEM_scalebarPixel as Scalebarfunc
 import MathTool
 
 '''
@@ -89,21 +89,21 @@ class FFTUI:
         self.all_file_list = []
         self.file_path = None
         self.file_name = None
-        # self.scalebar = 0.0
 
 
         # FFT image
-        self.fig = Figure(figsize=(6, 6), dpi=100) # 建立 matplotlib 圖形
-        self.ax = self.fig.add_subplot(111)
-        self.ax.set_title("FFT image")
+        self.fig_FFT = Figure(figsize=(6, 6), dpi=100) # 建立 matplotlib 圖形
+        self.ax_FFT = self.fig_FFT.add_subplot(111)
+        self.ax_FFT.set_title("FFT image")
 
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self.master) # 將 matplotlib 圖形嵌入 tkinter 視窗中
+        self.canvas = FigureCanvasTkAgg(self.fig_FFT, master=self.master) # 將 matplotlib 圖形嵌入 tkinter 視窗中
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
         ### --- 新增 file list 空間 --- ###
         self.entry_frame1 = tk.Frame(master, bg="#D3D3D3") #D3D3D3 灰色
         self.entry_frame1.place(relx=0.01, rely=0.05, relwidth=0.25, relheight=0.86)
+
 
         ### --- 新增 OM Image & scale bar 空間 --- ###
         self.entry_frame3 = tk.Frame(master, bg="#D3D3D3") #D3D3D3 灰色
@@ -115,18 +115,11 @@ class FFTUI:
         # 顯示原始圖片
         self.fig_row = Figure(figsize=(6, 6), dpi=100) # 建立 row image 圖形
         self.ax_row = self.fig_row.add_subplot(111)
-
         self.canvas_row = FigureCanvasTkAgg(self.fig_row, master=self.canvas_origin_image)
         self.canvas_row.draw()
         self.canvas_row.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-        # 建立 Clear Point 按鈕
-        clear_point_button = tk.Button(master=self.master, text='Clear all', command=self.clear_point)
-        clear_point_button.pack(side=tk.LEFT)
 
-        # 建立 save 按鈕
-        save_fig_button = tk.Button(master=self.master, text='save', command=self.save_fig)
-        save_fig_button.pack(side=tk.LEFT)
 
 
     def clear_point(self):
@@ -147,6 +140,14 @@ class FFTUI:
         self.ax_row.imshow(array, cmap='gray')#, vmin=0, vmax=255)#, extent=self.change_axis, aspect=1)
         self.ax_row.axis('off')
         self.fig_row.canvas.draw()
+
+        self.display_FFT()
+
+    def display_FFT(self):
+        '''
+        後面會重新設定。
+        '''
+        pass
 
     def save_fig(self):
 
@@ -317,25 +318,92 @@ class FFTUI_add_Scalebar(FFTUI_add_file_list):
         self.scalebar_lalbel = tk.Label(master=self.entry_frame3,  text='', bg='white', fg='black', font=('Arial', 14))
         self.scalebar_lalbel.place(relx=0.2, rely=0.6)
 
+    def check_input(self):
+        try:
+            float(self.scalebar_length_entry.get())
+            float(self.scalebar_pixel_entry.get())
+        except:
+            tk.messagebox.showinfo('Error', 'Input scalebar information')
+
     def caculate_scalebar(self):
 
+        self.check_input() # 檢查 scalebar 有沒有輸入資訊
         length, pixel = self.scalebar_length_entry.get(), self.scalebar_pixel_entry.get()
-        self.scalebar = float(length) / float(pixel)
+        try:
+            self.scalebar = float(length) / float(pixel)
+        except:
+            return
         word = f"scale bar: {np.round(self.scalebar, 4)} um per pixel"
 
         self.scalebar_lalbel = tk.Label(master=self.entry_frame3,  text=word, bg='white', fg='black', font=('Arial', 14))
         self.scalebar_lalbel.place(relx=0.05, rely=0.6)
 
 
+class UI_add_FFT_image(FFTUI_add_Scalebar):
 
+
+    def __init__(self, master):
+        super().__init__(master)
+
+        # 測試用的
+        self.folder_path = '/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230508_OM/AP_1750_n3'
+        self.folder_reset() # 測試用的
+
+
+        self.fftClass    = None
+        self.change_axis = None
+        self.twoD_FFT    = None
+        self.ellClass    = None
+
+        
+        
+    def setup(self):
+
+        '''
+        1. caculate_scalebar
+            若沒通過，會跳出 視窗說明，
+            通過，則得到 `self.scalebar`。
+        2. 設定 class
+            因為 file_path 必須為 array 才可以畫圖。
+            display FFT 與 image 一起觸發。
+            之前有設定 try: OM_show。
+            
+            現在要再次設定 OM_show 突過才會 設定 <class>。
+
+        '''
+        self.caculate_scalebar() # 檢查 `scalebar entry` 有沒有輸入資訊，順便取得 `self.scalebar`
+        
+        try:
+            array, file_name = OM_imshow(self.file_path)
+        except:
+            file_name = os.path.basename(self.file_path)
+            print("{file_name} isn't an array!")
+            return
+
+        self.fftClass = FFTfunc.FFT(self.file_path)
+        width, length = array.shape
+        self.change_axis = self.fftClass.extent4FFT(width, length)
+        self.twoD_FFT = self.fftClass.array2FFT(array)
+        self.ellClass = MathTool.Simulate_ellipse(center=(width//2, length//2), theta=0) # theta 設定為 0
+
+    def display_FFT(self):
+        
+        self.setup() # 預先設定
+
+        self.ax_FFT.clear()
+        file_name = os.path.basename(self.file_path)
+        self.ax_FFT.set_title(file_name)
+        
+        if self.twoD_FFT is not None:
+            self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=-9, vmax=18, extent=self.change_axis, aspect=1)
+        self.fig_FFT.canvas.draw()
 
 
 if __name__ == '__main__':
     
     root = tk.Tk()  # 建立 tkinter 視窗
     # file_path = tk_choose_path(master=root)
-    file_path = '/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413_SEM/AP/18.tif'
-    # array  = plt_SEM_imshow(file_path, center=(.45, .48), length=.399)[0]
-    viewer = FFTUI_add_Scalebar(master=root)
+    # file_path = '/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413_SEM/AP/18.tif'
+    viewer = UI_add_FFT_image(master=root)
     root.mainloop() # 啟動 tkinter 視窗
 
