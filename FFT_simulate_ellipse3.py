@@ -89,6 +89,7 @@ class FFTUI:
         self.all_file_list = []
         self.file_path = None
         self.file_name = None
+        self.array = None
 
 
         # FFT image
@@ -119,51 +120,112 @@ class FFTUI:
         self.canvas_row.draw()
         self.canvas_row.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
+        ##### ------- 最底下的按鈕 ------- #####
+        # 建立 Get Point 按鈕
+        get_point_button = tk.Button(master=self.master, text='Get Point', command=self.get_point)
+        get_point_button.pack(side=tk.LEFT)
+
+        # 建立 Clear Point 按鈕
+        clear_point_button = tk.Button(master=self.master, text='Clear point', command=self.clear_point)
+        clear_point_button.pack(side=tk.LEFT)
+
+        # 建立 simulate 按鈕
+        simulate_ellipse_button = tk.Button(master=self.master, text='Simulate', command=self.plt_ab_on_fig)
+        simulate_ellipse_button.pack(side=tk.LEFT)
+
+        # 建立 save 按鈕
+        save_fig_button = tk.Button(master=self.master, text='save', command=self.save_fig)
+        save_fig_button.pack(side=tk.LEFT)
+
+        # 將圖形與按鈕顯示於視窗中
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        get_point_button.pack(side=tk.LEFT)
+        clear_point_button.pack(side=tk.LEFT)
+
+        # 建立點選功能所需的空串列
+        self.point_list = [[], []]
+        ##### ---------- end ---------- #####
+
+        # 設定圖形的鼠標點擊事件
+        self.canvas.mpl_connect('button_press_event', self.on_click)
 
 
+    def update_fftlim(self, value):
+        # print(value)
+        self.fftlim = int(value)
+        self.ax_FFT.set_xlim(-self.fftlim, self.fftlim)
+        self.ax_FFT.set_ylim(-self.fftlim, self.fftlim)
+        self.canvas.draw()
+
+    def on_click(self, event):
+        if event.inaxes is not None:
+            x, y = int(round(event.xdata)), int(round(event.ydata))
+            self.point_list[0].append(x)
+            self.point_list[1].append(y)
+            self.ax_FFT.scatter(x, y, s=10, c='g')
+            self.fig_FFT.canvas.draw()
+
+    def get_point(self):
+        print(self.point_list)
+        return self.point_list
 
     def clear_point(self):
         
-        pass
-
+        self.point_list[0].clear()
+        self.point_list[1].clear()
+        self.ax_FFT.clear()
+        try:
+            self.array, file_name = OM_imshow(self.file_path)
+        except:
+            print('失敗')
+            return
+        print('1')
+        self.ax_FFT.imshow(np.log(self.array), cmap='jet', vmin=-9, vmax=18, extent=self.change_axis, aspect=1)
+        self.ax_FFT.set_xlim(-self.fftlim, self.fftlim)
+        print('1')
+        self.ax_FFT.set_ylim(-self.fftlim, self.fftlim)
+        self.fig_FFT.canvas.draw()
+        print('1')
 
     def display_row_image(self):
         
         try:
-            array, file_name = OM_imshow(self.file_path)
+            self.array, file_name = OM_imshow(self.file_path)
             # print('成功')
         except:
             # print('失敗')
             return
         self.ax_row.clear()
         self.ax_row.set_title(file_name)
-        self.ax_row.imshow(array, cmap='gray')#, vmin=0, vmax=255)#, extent=self.change_axis, aspect=1)
+        self.ax_row.imshow(self.array, cmap='gray')#, vmin=0, vmax=255)#, extent=self.change_axis, aspect=1)
         self.ax_row.axis('off')
         self.fig_row.canvas.draw()
 
         self.display_FFT()
 
+    def plt_ab_on_fig(self):
+        # 後面會重新設定。
+        pass
+
     def display_FFT(self):
-        '''
-        後面會重新設定。
-        '''
+        # 後面會重新設定。
         pass
 
     def save_fig(self):
+        pass
 
-        file_name = file_path.split('/')[-2] + '_' + file_path.split('/')[-1].split('.')[0]
-        # abs_file_folder = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/"
+        # file_name = file_path.split('/')[-2] + '_' + file_path.split('/')[-1].split('.')[0]
+        # # abs_file_folder = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/"
         
-        self.fig.savefig(abs_file_folder + f"FFT_{file_name}.png")
+        # self.fig.savefig(abs_file_folder + f"FFT_{file_name}.png")
         
-        if self.check_numbers_of_data() == False:
-            a_f, b_f = None, None
-        else:
-            a_f, b_f = self.pixel_2_frequency()
-        with open(abs_file_folder + 'fft_peak.txt', 'a') as f:
-            f.write(f"{file_name}\t{a_f}\t{b_f}\n")
+        # if self.check_numbers_of_data() == False:
+        #     a_f, b_f = None, None
+        # else:
+        #     a_f, b_f = self.pixel_2_frequency()
+        # with open(abs_file_folder + 'fft_peak.txt', 'a') as f:
+        #     f.write(f"{file_name}\t{a_f}\t{b_f}\n")
 
-        self.master.destroy() # 關閉視窗
 
 
 class FFTUI_add_file_list(FFTUI):
@@ -253,9 +315,12 @@ class FFTUI_add_file_list(FFTUI):
         self.folder_path_view.place(relx=0.04, rely=0.15, relwidth=0.92, relheight=0.04)
         self.file_list_reset()
 
+
     def file_list_reset(self):
 
         self.count = 0
+        self.point_list[0].clear()
+        self.point_list[1].clear()
 
         self.listbox.delete(0, tk.END) # clear
         # 逐行顯示 file list
@@ -271,6 +336,9 @@ class FFTUI_add_file_list(FFTUI):
 
     def right_image(self):
 
+        self.point_list[0].clear()
+        self.point_list[1].clear()
+
         if not self.count < len(self.all_file_list):
             return
         self.listbox.selection_clear(self.count, tk.END) # clear 原本的
@@ -283,6 +351,9 @@ class FFTUI_add_file_list(FFTUI):
 
     def left_image(self):
         
+        self.point_list[0].clear()
+        self.point_list[1].clear()
+
         if self.count  == 0:
             return
         self.listbox.selection_clear(self.count, tk.END) # clear 原本的
@@ -303,11 +374,13 @@ class FFTUI_add_Scalebar(FFTUI_add_file_list):
         
         # 實際長度
         self.scalebar_length_entry = tk.Entry(master=self.entry_frame3, bg='black', fg='white')
+        self.scalebar_length_entry.insert(tk.END, "10")  # 插入預設值
         self.scalebar_length_entry.place(relx=0.05, rely=0.5, relwidth=0.15, relheight=0.032)
         unit_label = tk.Label(master=self.entry_frame3,   text='um', bg='white', fg='black', font=('Arial', 14))
         unit_label.place(relx=0.22, rely=0.5)
         # scarl bar pixle value
         self.scalebar_pixel_entry = tk.Entry(master=self.entry_frame3, bg='black', fg='white')
+        self.scalebar_pixel_entry.insert(tk.END, "329")  # 插入預設值
         self.scalebar_pixel_entry.place(relx=0.05, rely=0.55, relwidth=0.2, relheight=0.032)
         pixel_label = tk.Label(master=self.entry_frame3,   text='pixel', bg='white', fg='black', font=('Arial', 14))
         pixel_label.place(relx=0.27, rely=0.55)
@@ -349,11 +422,20 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         self.folder_path = '/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230508_OM/AP_1750_n3'
         self.folder_reset() # 測試用的
 
-
         self.fftClass    = None
         self.change_axis = None
         self.twoD_FFT    = None
         self.ellClass    = None
+
+
+
+        # 建立 tkinter Scale 物件
+        scale_label  = tk.Label(self.master, text="axis lim").pack(side=tk.LEFT)
+        self.fftlim_scale = tk.Scale(master=self.master, from_=5, to=f'{500//2}', tickinterval= f'{200}', resolution=5, 
+                                orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
+        self.fftlim_scale.set(70)
+        self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
+
 
         
         
@@ -374,17 +456,23 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         self.caculate_scalebar() # 檢查 `scalebar entry` 有沒有輸入資訊，順便取得 `self.scalebar`
         
         try:
-            array, file_name = OM_imshow(self.file_path)
+            self.array, file_name = OM_imshow(self.file_path)
         except:
             file_name = os.path.basename(self.file_path)
             print("{file_name} isn't an array!")
             return
 
         self.fftClass = FFTfunc.FFT(self.file_path)
-        width, length = array.shape
-        self.change_axis = self.fftClass.extent4FFT(width, length)
-        self.twoD_FFT = self.fftClass.array2FFT(array)
-        self.ellClass = MathTool.Simulate_ellipse(center=(width//2, length//2), theta=0) # theta 設定為 0
+        self.width, self.length = self.array.shape
+        self.change_axis = self.fftClass.extent4FFT(self.width, self.length)
+        self.twoD_FFT = self.fftClass.array2FFT(self.array)
+        self.ellClass = MathTool.Simulate_ellipse(center=(self.width//2, self.length//2), theta=0) # theta 設定為 0
+
+        self.fftlim_scale.destroy()  # 刪除舊的 tk.Scale
+        self.fftlim_scale = tk.Scale(master=self.master, from_=5, to=f'{self.width//2}', tickinterval= f'{200}', resolution=5, 
+                                orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
+        self.fftlim_scale.set(self.fftlim)
+        self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
 
     def display_FFT(self):
         
@@ -397,6 +485,48 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         if self.twoD_FFT is not None:
             self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=-9, vmax=18, extent=self.change_axis, aspect=1)
         self.fig_FFT.canvas.draw()
+
+    def check_numbers_of_data(self):
+
+        if len(self.point_list[0]) < 3:
+            tk.messagebox.showinfo('Too few points')
+            print('too little point!')
+            return False
+
+    def simulate_ellipse(self):
+        
+        if self.check_numbers_of_data() == False:
+            return 
+
+        width, length = self.array.shape
+        a, b = self.ellClass.fit_ellipse(x=self.point_list[0], y=self.point_list[1])
+        distance = self.ellClass.ellipse_distance_between_center(self.array, a, b)
+
+        x, y = np.meshgrid(self.fftClass.FFTAxisCenterbeZero(width), self.fftClass.FFTAxisCenterbeZero(width))
+        self.ax_FFT.contour(x, y, distance, levels=[0], colors='white')
+        self.fig_FFT.canvas.draw()
+        return int(round(a)), int(round(b))
+
+    def plt_ab_on_fig(self):
+        
+        if self.check_numbers_of_data() == False:
+            return 
+
+        a_f, b_f = self.pixel_2_frequency()
+        a_f, b_f = round(a_f,1), round(b_f,1)
+        y_lim = self.fftlim_scale.get()
+        self.ax_FFT.text(0, 0.9*y_lim, f'x:{a_f}um-1 y:{b_f}um-1', fontsize=12, ha='center', va='center')
+        self.fig_FFT.canvas.draw()
+
+    def pixel_2_frequency(self):
+
+        a, b = self.simulate_ellipse()
+        print(f'長軸: {a} pixel, 短軸：{b} pixel')
+        width, length = self.array.shape
+        a_f = a / (width * self.scalebar)
+        b_f = b / (width * self.scalebar)
+        print(f'長軸: {1/a_f} um, 短軸：{1/b_f}m')
+        return a_f, b_f
 
 
 if __name__ == '__main__':
