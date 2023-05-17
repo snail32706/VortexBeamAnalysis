@@ -12,21 +12,28 @@ import os
 # from scipy.optimize import minimize
 
 import FFT as FFTfunc
+import MathTool
 # import simulateLIPSS as LIPSS
 # import find_SEM_scalebarPixel as Scalebarfunc
-import MathTool
+
 
 '''
-此檔案利用 `tk.filedialog` load file.
-再透過 `plt_SEM_imshow` 得到 "twoD_FFT", "scalebar"
+參數名：
+    self.folder_path = '/Users/...AP_1350_n3'
+    self.file_name   = 'row1_170718.jpg'
+    self.file_path   = '/Users/...AP_1350_n3/row1_170718.jpg'
 
-`FFTUI` 主要用 tkinter 管理 UI, `FigureCanvasTkAgg`將`matplotlib`的功能時現在`tkUI`中顯示。
-並透過鼠標互動，點出 「peak point」； simulate 橢圓形； 顯示「空間頻率」在圖上。
 
 注意：
     1. `self.ellClass` 設定 "theta = 0"
     2. spatial frequency 倒數為週期
     3. save_fig() 中的路徑需要改
+
+
+Q: simulate ell
+W: save figure
+E: next picture
+R: reset scalebar
 
 '''
 ###
@@ -44,12 +51,12 @@ def OM_imshow(file_path):
 def tk_choose_path(master):
 
     file_path = tk.filedialog.askopenfilename(
-        initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP')
+        initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/')
     return file_path
 
 def tk_choose_folder(master):
     folder_path = tk.filedialog.askdirectory(
-        initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/')
+        initialdir='/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230508_OM/')
     return folder_path
 
 def file_name(file_path):
@@ -73,7 +80,6 @@ def read_folder_all_file(folder, keyword=None):
 
 def list_filter(file_list, keyword):
     return list(filter(lambda x: keyword in x, file_list))
-
 
 
 
@@ -132,10 +138,12 @@ class FFTUI:
         # 建立 simulate 按鈕
         simulate_ellipse_button = tk.Button(master=self.master, text='Simulate', command=self.plt_ab_on_fig)
         simulate_ellipse_button.pack(side=tk.LEFT)
+        self.master.bind('q', lambda event: self.plt_ab_on_fig()) # 使用鍵盤 觸發相同事件
 
         # 建立 save 按鈕
         save_fig_button = tk.Button(master=self.master, text='save', command=self.save_fig)
         save_fig_button.pack(side=tk.LEFT)
+        self.master.bind('w', lambda event: self.save_fig()) # 使用鍵盤 觸發相同事件
 
         # 將圖形與按鈕顯示於視窗中
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -149,13 +157,15 @@ class FFTUI:
         # 設定圖形的鼠標點擊事件
         self.canvas.mpl_connect('button_press_event', self.on_click)
 
+    def plt_set_xlim(self):
+        self.ax_FFT.set_xlim(-self.fftlim, self.fftlim)
+        self.ax_FFT.set_ylim(-self.fftlim, self.fftlim)
+        self.canvas.draw()
 
     def update_fftlim(self, value):
         # print(value)
         self.fftlim = int(value)
-        self.ax_FFT.set_xlim(-self.fftlim, self.fftlim)
-        self.ax_FFT.set_ylim(-self.fftlim, self.fftlim)
-        self.canvas.draw()
+        self.plt_set_xlim()
 
     def on_click(self, event):
         if event.inaxes is not None:
@@ -169,23 +179,46 @@ class FFTUI:
         print(self.point_list)
         return self.point_list
 
+    def update_vmin(self, value):
+        # print(value)
+        self.vmin = float(value)
+        self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=self.vmin, vmax=self.vmax, extent=self.change_axis, aspect=1)
+        self.fig_FFT.canvas.draw()
+
+    def update_vmax(self, value):
+        # print(value)
+        self.vmax = float(value)
+        self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=self.vmin, vmax=self.vmax, extent=self.change_axis, aspect=1)
+        self.fig_FFT.canvas.draw()
+
+    # def FFT_imshow(self):
+
+    #     print(self.vmin_scale.get())
+    #     print(type(self.vmin_scale.get()))
+        # self.vmin = float(self.vmin_scale.get())
+        # self.vmax = float(self.vmax_scale.get())
+
+
+        # self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=self.vmin, vmax=self.vmax, extent=self.change_axis, aspect=1)
+        # self.fig_FFT.canvas.draw()
+
     def clear_point(self):
         
         self.point_list[0].clear()
         self.point_list[1].clear()
         self.ax_FFT.clear()
-        try:
-            self.array, file_name = OM_imshow(self.file_path)
-        except:
-            print('失敗')
+        # try:
+        #     self.array, file_name = OM_imshow(self.file_path)
+        # except:
+        #     print('失敗')
+        #     return
+        if self.twoD_FFT is None:
+            print('self.twoD_FFT is not exit')
             return
-        print('1')
-        self.ax_FFT.imshow(np.log(self.array), cmap='jet', vmin=-9, vmax=18, extent=self.change_axis, aspect=1)
-        self.ax_FFT.set_xlim(-self.fftlim, self.fftlim)
-        print('1')
-        self.ax_FFT.set_ylim(-self.fftlim, self.fftlim)
-        self.fig_FFT.canvas.draw()
-        print('1')
+
+        self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=self.vmin, vmax=self.vmax, extent=self.change_axis, aspect=1)
+        self.plt_set_xlim()
+
 
     def display_row_image(self):
         
@@ -197,7 +230,7 @@ class FFTUI:
             return
         self.ax_row.clear()
         self.ax_row.set_title(file_name)
-        self.ax_row.imshow(self.array, cmap='gray')#, vmin=0, vmax=255)#, extent=self.change_axis, aspect=1)
+        self.ax_row.imshow(self.array, cmap='gray')
         self.ax_row.axis('off')
         self.fig_row.canvas.draw()
 
@@ -212,20 +245,8 @@ class FFTUI:
         pass
 
     def save_fig(self):
+        # 後面會重新設定。
         pass
-
-        # file_name = file_path.split('/')[-2] + '_' + file_path.split('/')[-1].split('.')[0]
-        # # abs_file_folder = f"/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413 SEM/AP_choose_point/"
-        
-        # self.fig.savefig(abs_file_folder + f"FFT_{file_name}.png")
-        
-        # if self.check_numbers_of_data() == False:
-        #     a_f, b_f = None, None
-        # else:
-        #     a_f, b_f = self.pixel_2_frequency()
-        # with open(abs_file_folder + 'fft_peak.txt', 'a') as f:
-        #     f.write(f"{file_name}\t{a_f}\t{b_f}\n")
-
 
 
 class FFTUI_add_file_list(FFTUI):
@@ -290,6 +311,7 @@ class FFTUI_add_file_list(FFTUI):
         self.arrow_right_button = tk.Button(master=self.entry_frame1, image=self.arrow_right_image, bg='lightgray', command=self.right_image)
         self.arrow_right_button.pack(side=tk.LEFT, anchor=tk.SW, padx=20, pady=10)
         self.master.bind('<Right>', lambda event: self.right_image()) # 使用鍵盤 觸發相同事件
+        self.master.bind('e', lambda event: self.right_image()) # 使用鍵盤 觸發相同事件
 
     def choose_folder(self):
 
@@ -426,18 +448,29 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         self.change_axis = None
         self.twoD_FFT    = None
         self.ellClass    = None
-
-
+        self.old_width = None
+        self.vmin = -3.0
+        self.vmax = 18.0
 
         # 建立 tkinter Scale 物件
         scale_label  = tk.Label(self.master, text="axis lim").pack(side=tk.LEFT)
         self.fftlim_scale = tk.Scale(master=self.master, from_=5, to=f'{500//2}', tickinterval= f'{200}', resolution=5, 
-                                orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
+                                    orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
         self.fftlim_scale.set(70)
         self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
 
+        # colorbar add vmin
+        FFT_colorbar_label  = tk.Label(self.master, text="FFT colorbar:", font=("TkDefaultFont", 15)).pack(side=tk.LEFT)
+        vmin_label  = tk.Label(self.master, text="vmin:").pack(side=tk.LEFT)
+        self.vmin_scale = tk.Scale(master=self.master, from_=-15, to=25, tickinterval= 50, resolution=0.5, 
+                                    orient=tk.HORIZONTAL, length=150, command=self.update_vmin)
+        self.vmin_scale.set(-3.0)
+        self.vmin_scale.pack(side=tk.LEFT, fill=tk.X)
 
-        
+        # vmax_label  = tk.Label(self.master, text="vmax:").pack(side=tk.LEFT)
+        # self.vmax_scale = tk.Scale(master=self.master, from_=-15, to=25, resolution=0.5, orient=tk.HORIZONTAL, length=150, command=self.update_vmax)
+        # self.vmax_scale.set(18)
+        # self.vmax_scale.pack(side=tk.LEFT, fill=tk.X)
         
     def setup(self):
 
@@ -468,11 +501,17 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         self.twoD_FFT = self.fftClass.array2FFT(self.array)
         self.ellClass = MathTool.Simulate_ellipse(center=(self.width//2, self.length//2), theta=0) # theta 設定為 0
 
-        self.fftlim_scale.destroy()  # 刪除舊的 tk.Scale
-        self.fftlim_scale = tk.Scale(master=self.master, from_=5, to=f'{self.width//2}', tickinterval= f'{200}', resolution=5, 
-                                orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
-        self.fftlim_scale.set(self.fftlim)
-        self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
+        if self.old_width is None:
+            self.old_width = self.width
+        elif self.old_width == self.width:
+            self.old_width = self.width
+            self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
+        else:
+            self.fftlim_scale.destroy()  # 刪除舊的 tk.Scale
+            self.fftlim_scale = tk.Scale(master=self.master, from_=5, to=f'{self.width//2}', tickinterval= f'{200}', resolution=5, 
+                                    orient=tk.HORIZONTAL, length=300, command=self.update_fftlim)
+            self.fftlim_scale.set(self.fftlim)
+            self.fftlim_scale.pack(side=tk.LEFT, fill=tk.X)
 
     def display_FFT(self):
         
@@ -483,8 +522,9 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         self.ax_FFT.set_title(file_name)
         
         if self.twoD_FFT is not None:
-            self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=-9, vmax=18, extent=self.change_axis, aspect=1)
+            self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=self.vmin, vmax=self.vmax, extent=self.change_axis, aspect=1)
         self.fig_FFT.canvas.draw()
+        self.plt_set_xlim()
 
     def check_numbers_of_data(self):
 
@@ -528,12 +568,34 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         print(f'長軸: {1/a_f} um, 短軸：{1/b_f}m')
         return a_f, b_f
 
+    def save_fig(self):
+        # '''
+        # OM:
+        #     "crop_row4_3.jpg" -> "crop_row4_3" -> "row4_3"
+        # '''
+        # img_n = self.file_name.split('crop')[1][1:] 
+        # '''
+        # SEM:
+        #     "1350_row4_3.tif"
+        # '''
+        img_n = self.file_name
+
+        saving_n = os.path.join(self.folder_path, f"FFT_{img_n}.png")
+        self.fig_FFT.savefig(saving_n) # 使用「絕對路徑」
+        
+        if self.check_numbers_of_data() == False:
+            a_f, b_f = None, None
+        else:
+            a_f, b_f = self.pixel_2_frequency()
+        with open(self.folder_path + '_fft_peak.txt', 'a') as f:
+            f.write(f"{img_n}\t{a_f}\t{b_f}\n")
+
+
+
 
 if __name__ == '__main__':
     
     root = tk.Tk()  # 建立 tkinter 視窗
-    # file_path = tk_choose_path(master=root)
-    # file_path = '/Users/k.y.chen/Library/CloudStorage/OneDrive-國立陽明交通大學/文件/交大電物/實驗室/7. 實驗 Data/20230413_SEM/AP/18.tif'
     viewer = UI_add_FFT_image(master=root)
     root.mainloop() # 啟動 tkinter 視窗
 
