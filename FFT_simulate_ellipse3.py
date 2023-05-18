@@ -181,12 +181,18 @@ class FFTUI:
 
     def update_vmin(self, value):
         # print(value)
+        if self.twoD_FFT is None or self.change_axis is None:
+            print("twoD_FFT or change_axis is None!")
+            return
         self.vmin = float(value)
         self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=self.vmin, vmax=self.vmax, extent=self.change_axis, aspect=1)
         self.fig_FFT.canvas.draw()
 
     def update_vmax(self, value):
         # print(value)
+        if self.twoD_FFT is None or self.change_axis is None:
+            print("twoD_FFT or change_axis is None!")
+            return
         self.vmax = float(value)
         self.ax_FFT.imshow(np.log(self.twoD_FFT), cmap='jet', vmin=self.vmin, vmax=self.vmax, extent=self.change_axis, aspect=1)
         self.fig_FFT.canvas.draw()
@@ -526,16 +532,17 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         self.fig_FFT.canvas.draw()
         self.plt_set_xlim()
 
-    def check_numbers_of_data(self):
+    def check_numbers_of_data(self, error_code=None):
 
         if len(self.point_list[0]) < 3:
-            tk.messagebox.showinfo('Too few points')
+            if error_code is None:
+                tk.messagebox.showinfo('Too few points')
             print('too little point!')
             return False
 
     def simulate_ellipse(self):
         
-        if self.check_numbers_of_data() == False:
+        if self.check_numbers_of_data(error_code='No') == False:
             return 
 
         width, length = self.array.shape
@@ -583,7 +590,7 @@ class UI_add_FFT_image(FFTUI_add_Scalebar):
         saving_n = os.path.join(self.folder_path, f"FFT_{img_n}.png")
         self.fig_FFT.savefig(saving_n) # 使用「絕對路徑」
         
-        if self.check_numbers_of_data() == False:
+        if self.check_numbers_of_data(error_code='No') == False:
             a_f, b_f = None, None
         else:
             a_f, b_f = self.pixel_2_frequency()
